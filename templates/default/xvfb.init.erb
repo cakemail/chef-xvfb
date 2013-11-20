@@ -1,26 +1,63 @@
 #!/bin/bash
 
+function start {
+  NB=$1
+  echo -n "Starting xvfb no $NB .."
+  start-stop-daemon --start --quiet --pidfile "$PIDFILE.$NB" --make-pidfile --background --exec $XVFB -- :$NB $XVFBARGS
+  echo "."
+}
+
+function stop {
+  NB=$1
+  echo -n "Stopping xvfb no $NB .."
+  start-stop-daemon --stop --quiet --pidfile "$PIDFILE.$NB"
+  echo "."
+}
+
+function fatal {
+  echo "$@"
+  exit 2
+}
+
+function usage {
+  fatal "Usage: $0 {start|stop|restart}"
+}
+
+
 XVFB=/usr/bin/Xvfb
-XVFBARGS=":<%= @node[:xvfb][:display] %> -nolisten tcp -fbdir /var/run"
+if [ ! -f $XVFG ]; then
+  fatal "FATAL ERROR: Xvfg binary could not be found"
+fi 
+XVFBARGS=" -nolisten tcp -fbdir /var/run"
 PIDFILE=/var/run/xvfb.pid
+
 case "$1" in
   start)
-    echo -n "Starting virtual X frame buffer: Xvfb"
-    start-stop-daemon --start --quiet --pidfile $PIDFILE --make-pidfile --background --exec $XVFB -- $XVFBARGS
-    echo "."
+    echo "Starting virtual X frame buffer: Xvfb"
+    for NB in `seq  <%= @node[:xvfb][:first_display] %> <%= @node[:xvfb][:last_display] %>`
+    do
+      start $NB
+    done
     ;;
+
   stop)
-    echo -n "Stopping virtual X frame buffer: Xvfb"
-    start-stop-daemon --stop --quiet --pidfile $PIDFILE
-    echo "."
+    echo "Stopping virtual X frame buffer: Xvfb"
+    for NB in `seq <%= @node[:xvfb][:first_display] %>  <%= @node[:xvfb][:last_display] %>`
+    do
+      stop $NB
+    done
     ;;
+
   restart)
-    $0 stop
-    $0 start
+    for NB in `seq  <%= @node[:xvfb][:first_display] %> <%= @node[:xvfb][:last_display] %>`
+    do
+      stop $NB
+      start $NB
+    done
     ;;
   *)
-        echo "Usage: /etc/init.d/xvfb {start|stop|restart}"
-        exit 1
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
 esac
 
 exit 0
